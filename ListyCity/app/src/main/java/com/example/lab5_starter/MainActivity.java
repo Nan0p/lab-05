@@ -5,6 +5,7 @@ import android.util.Log;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -13,6 +14,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -24,12 +26,14 @@ import java.util.Calendar;
 public class MainActivity extends AppCompatActivity implements CityDialogFragment.CityDialogListener {
 
     private Button addCityButton;
+    private FloatingActionButton deleteCityButton;
     private ListView cityListView;
 
     private ArrayList<City> cityArrayList;
-    private ArrayAdapter<City> cityArrayAdapter;
+    private CityArrayAdapter cityArrayAdapter;
     private FirebaseFirestore db;
     private CollectionReference citiesRef;
+    private City selectedCity = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +48,7 @@ public class MainActivity extends AppCompatActivity implements CityDialogFragmen
 
         // Set views
         addCityButton = findViewById(R.id.buttonAddCity);
+        deleteCityButton = findViewById(R.id.buttonDeleteCity);
         cityListView = findViewById(R.id.listviewCities);
 
         // create city array
@@ -68,6 +73,8 @@ public class MainActivity extends AppCompatActivity implements CityDialogFragmen
                     cityArrayList.add(new City(name, province));
                 }
                 cityArrayAdapter.notifyDataSetChanged();
+                selectedCity = null;
+                cityArrayAdapter.setSelectedPosition(-1);
             }
         });
 
@@ -78,14 +85,28 @@ public class MainActivity extends AppCompatActivity implements CityDialogFragmen
             cityDialogFragment.show(getSupportFragmentManager(),"Add City");
         });
 
-        cityListView.setOnItemClickListener((adapterView, view, i, l) -> {
+        cityListView.setOnItemLongClickListener((adapterView, view, i, l) -> {
             City city = cityArrayAdapter.getItem(i);
             CityDialogFragment cityDialogFragment = CityDialogFragment.newInstance(city);
             cityDialogFragment.show(getSupportFragmentManager(),"City Details");
+            return true;
         });
 
+        cityListView.setOnItemClickListener((adapterView, view, i, l) -> {
+            selectedCity = cityArrayList.get(i);
+            cityArrayAdapter.setSelectedPosition(i);
+        });
 
-
+        deleteCityButton.setOnClickListener(view -> {
+            if (selectedCity != null) {
+                citiesRef.document(selectedCity.getName())
+                        .delete()
+                        .addOnSuccessListener(aVoid -> {
+                            selectedCity = null;
+                            cityArrayAdapter.setSelectedPosition(-1);
+                        });
+            }
+        });
     }
 
     @Override
@@ -93,8 +114,6 @@ public class MainActivity extends AppCompatActivity implements CityDialogFragmen
         city.setName(title);
         city.setProvince(year);
         cityArrayAdapter.notifyDataSetChanged();
-
-        // Updating the database using delete + addition
     }
 
     @Override
